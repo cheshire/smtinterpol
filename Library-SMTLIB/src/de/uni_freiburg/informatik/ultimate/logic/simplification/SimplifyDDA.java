@@ -37,6 +37,7 @@ import de.uni_freiburg.informatik.ultimate.logic.Term;
 import de.uni_freiburg.informatik.ultimate.logic.TermTransformer;
 import de.uni_freiburg.informatik.ultimate.logic.TermVariable;
 import de.uni_freiburg.informatik.ultimate.logic.Util;
+import de.uni_freiburg.informatik.ultimate.util.PushPopChecker;
 
 /**
  * Simplify formulas, but keep their Boolean structure.
@@ -386,7 +387,7 @@ public class SimplifyDDA extends NonRecursive {
 						simplifier.setResult(mNegated, simplifier.mTrue);
 					return;
 				}
-				
+
 				TermInfo info = simplifier.mTermInfos.get(mTerm);
 				if (info.mNumPredecessors > 1) {
 					assert info.mSimplified != null;
@@ -394,9 +395,21 @@ public class SimplifyDDA extends NonRecursive {
 					return;
 				}
 			}
-			
-			if (mContext != null)
+
+			if (mContext != null) {
 				simplifier.pushContext(mContext);
+
+				/* check for redundancy */
+				Redundancy red = simplifier.getRedundancy(mTerm);
+				if (red != Redundancy.NOT_REDUNDANT) {
+					if (red == Redundancy.NON_RELAXING)
+						simplifier.setResult(mNegated, simplifier.mFalse);
+					else
+						simplifier.setResult(mNegated, simplifier.mTrue);
+					simplifier.popContext();
+					return;
+				}
+			}
 
 			if (mTerm instanceof ApplicationTerm) {
 				ApplicationTerm appTerm = (ApplicationTerm) mTerm;
@@ -431,21 +444,33 @@ public class SimplifyDDA extends NonRecursive {
 					simplifier.enqueueWalker(new Simplifier(false, params[0]));
 					break;
 				case 1:
-					simplifier.enqueueWalker(this);
-					simplifier.pushContext(mSimplifiedParams[0]);
-					simplifier.enqueueWalker(
-							new Simplifier(mNegated, params[1]));
-					break;
+					if (mSimplifiedParams[0] != simplifier.mFalse) {
+						simplifier.enqueueWalker(this);
+						simplifier.pushContext(mSimplifiedParams[0]);
+						simplifier.enqueueWalker(
+								new Simplifier(mNegated, params[1]));
+						break;
+					}
+					mSimplifiedParams[mParamCtr - 1] = simplifier.mFalse;
+					mParamCtr++;
+					/* fall through */
 				case 2:
-					simplifier.enqueueWalker(this);
-					simplifier.popContext();
-					simplifier.pushContext(
-							Util.not(simplifier.mScript, mSimplifiedParams[0]));
-					simplifier.enqueueWalker(
-							new Simplifier(mNegated, params[2]));
-					break;
+					if (mSimplifiedParams[0] != simplifier.mFalse)
+						simplifier.popContext();
+					if (mSimplifiedParams[0] != simplifier.mTrue) {
+						simplifier.enqueueWalker(this);
+						simplifier.pushContext(
+								Util.not(simplifier.mScript, mSimplifiedParams[0]));
+						simplifier.enqueueWalker(
+								new Simplifier(mNegated, params[2]));
+						break;
+					}
+					mSimplifiedParams[mParamCtr - 1] = simplifier.mFalse;
+					mParamCtr++;
+					/* fall through */
 				case 3: // NOCHECKSTYLE
-					simplifier.popContext();
+					if (mSimplifiedParams[0] != simplifier.mTrue)
+						simplifier.popContext();
 					Term result = Util.ite(simplifier.mScript, 
 							mSimplifiedParams[0], mSimplifiedParams[1],
 							mSimplifiedParams[2]);
@@ -602,7 +627,7 @@ public class SimplifyDDA extends NonRecursive {
 	 * NON_RELAXING if term is equivalent to true,
 	 * NOT_REDUNDANT if term is not redundant.
 	 */
-	private Redundancy getRedundancy(Term term) {
+	protected Redundancy getRedundancy(Term term) {
 		LBool isTermConstraining =
 				Util.checkSat(mScript, Util.not(mScript, term));
 		if (isTermConstraining == LBool.UNSAT) {
@@ -653,6 +678,8 @@ public class SimplifyDDA extends NonRecursive {
 		/* We can only simplify boolean terms. */
 		if (!inputTerm.getSort().getName().equals("Bool"))
 			return inputTerm;
+		int lvl = 0;// Java requires initialization
+		assert (lvl = PushPopChecker.currentLevel(mScript)) >= -1;
 		Term term = inputTerm;
 		mScript.echo(new QuotedObject("Begin Simplifier"));
 		mScript.push(1);
@@ -684,9 +711,10 @@ public class SimplifyDDA extends NonRecursive {
 			}
 		}.transform(term);// NOCHECKSTYLE
 		mScript.pop(1);
-		assert (checkEquivalence(inputTerm, term) == LBool.UNSAT)
+		assert (checkEquivalence(inputTerm, term) != LBool.SAT)
 			: "Simplification unsound?";
 		mScript.echo(new QuotedObject("End Simplifier"));
+		assert PushPopChecker.atLevel(mScript, lvl);
 		return term;
 	}
 	
@@ -717,7 +745,8 @@ public class SimplifyDDA extends NonRecursive {
 	void pushContext(Term... context) {
 		mScript.push(1);
 		for (Term t : context) {
-			mScript.assertTerm(t);
+			if (mScript.assertTerm(t) == LBool.UNSAT)
+				return;
 		}
 	}
 

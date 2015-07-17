@@ -1,0 +1,9 @@
+\documentclass{minimal}
+\makeatletter
+\newcommand{\foo}{\@@input|"ls minimal.tex"}
+\makeatother
+\newcommand\boo{foo is \foo}
+\begin{document}
+\foo\\
+\boo
+\end{document}

@@ -269,8 +269,9 @@ public class SMTInterpol extends NoopScript {
 	private int mBy0Seen = -1;
 	
 	// Timeout handling
-	private Timer mTimer;
-		
+	private final static class TimerHolder {
+		public static Timer timer = new Timer("SMTInterpol timeout thread", true); // NOCHECKSTYLE
+	}
 	/**
 	 * Delta debugger friendly version.  Exits with following codes:
 	 * model-check-mode fails: 1
@@ -425,7 +426,13 @@ public class SMTInterpol extends NoopScript {
 	
 	@Override
 	public void pop(int n) throws SMTLIBException {
-		super.pop(n);
+		try {
+			super.pop(n);
+		} catch (SMTLIBException eBug) {
+			if (mDDFriendly)
+				System.exit(123);
+			throw eBug;
+		}
 		modifyAssertionStack();
 		int i = n;
 		while (i-- > 0) {
@@ -448,7 +455,8 @@ public class SMTInterpol extends NoopScript {
 		TimeoutTask timer = null;
 		if (timeout > 0) {
 			timer = new TimeoutTask(mEngine);
-			getTimer().schedule(timer, timeout);
+			TimerHolder.timer.schedule(timer,
+					mOptions.getSolverOptions().getTimeout());
 		}
 		
 		LBool result = LBool.UNKNOWN;
@@ -463,6 +471,8 @@ public class SMTInterpol extends NoopScript {
 								smtinterpol.model.Model(
 								mClausifier, getTheory(),
 								mSolverOptions.isModelsPartial());
+						if (!mModel.checkTypeValues(mLogger) && mDDFriendly)
+							System.exit(1);
 						for (Term asserted : mAssertions) {
 							Term checkedResult = mModel.evaluate(asserted);
 							if (checkedResult != getTheory().mTrue) {
@@ -1345,20 +1355,17 @@ public class SMTInterpol extends NoopScript {
 		return ((Boolean) mOptions.get(option)).booleanValue();
 	}
 
-	private Timer getTimer() {
-		if (mTimer == null) {
-			mTimer = new Timer("SMTInterpol Timeout Handler", true);
-		}
-		return mTimer;
-	}
+//	@Override
+//	public void exit() {
+//		if (mTimer != null) {
+//			mTimer.cancel();
+//			mTimer = null;
+//		}
+//		super.exit();
+//	}
 
-	@Override
-	public void exit() {
-		if (mTimer != null) {
-			mTimer.cancel();
-			mTimer = null;
-		}
-		super.exit();
+	public OptionMap getOptionMap() {
+		return mOptions;
 	}
 
 }
