@@ -224,7 +224,7 @@ scan with {: return getScanner().next_token(); :}
 /* Predefined Symbols */
 terminal String UNDERSCORE, BANG,
          AS, ASSERT, CHECKSAT, CONTINUEDEXECUTION, 
-         DECLARESORT, DECLAREFUN, DEFINESORT, DEFINEFUN, ERRORSYM,
+         DECLARESORT, DECLAREFUN, DECLARE_CONST, DEFINESORT, DEFINEFUN, ERRORSYM,
          EXISTS, EXIT, FALSE, FORALL, GETASSERTIONS, GETASSIGNMENT, GETINFO,
          GETINTERPOLANTS,
          GETMODEL, GETOPTION, GETPROOF, GETUNSATCORE, GETVALUE, IMMEDIATEEXIT,
@@ -557,6 +557,19 @@ command ::= SETLOGIC symbol:logic
                    		parser.report_error(se.getMessage(), fun$);
                    		parser.env.printError(getError());
                    }
+               }
+            :}
+          | DECLARECONST symbol:fun sort:result
+            {: if (hasError())
+                  parser.env.printError(getError());
+               else {
+                  try {
+                     parser.env.getScript().declareFun(fun, Script.EMPTY_TERM_ARRAY, result);
+                     parser.env.printSuccess();
+                  } catch (SMTLIBException se) {
+                     parser.report_error(se.getMessage(), fun$);
+                     parser.env.printError(getError());
+                  }
                }
             :}
           | DEFINEFUN {: localVars.beginScope(); :} symbol:fun
