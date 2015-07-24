@@ -219,7 +219,7 @@ public class NoopScript implements Script {
 	@Override
 	public void reset() {
 		mTheory = null;
-        mStackLevel = 0;
+		mStackLevel = 0;
 	}
 
 	@Override
@@ -454,6 +454,14 @@ public class NoopScript implements Script {
 	@Override
 	public QuotedObject echo(QuotedObject msg) {
 		return msg;
+	}
+
+	@Override
+	public void resetAssertions() {
+		if (mTheory == null)
+			throw new SMTLIBException("No logic set!");
+		mTheory.resetAssertions();
+		mStackLevel = 0;
 	}
 
 }

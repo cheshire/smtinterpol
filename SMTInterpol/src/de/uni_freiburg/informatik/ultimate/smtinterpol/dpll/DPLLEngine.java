@@ -139,7 +139,7 @@ public class DPLLEngine {
 		mCompleteness = COMPLETE;
 		assert(logger != null);
 		this.mLogger = logger;
-		mPpStack = new StackData();
+		mPpStack = new NonRootLvlStackData(null);
 		// Benchmark sets the seed...
 		mRandom = new Random();
 		mCancel = cancel;
@@ -1670,4 +1670,5 @@ public class DPLLEngine {
 		}
 		return false;
 	}
+
 }

@@ -224,14 +224,14 @@ scan with {: return getScanner().next_token(); :}
 /* Predefined Symbols */
 terminal String UNDERSCORE, BANG,
          AS, ASSERT, CHECKSAT, CONTINUEDEXECUTION, 
-         DECLARESORT, DECLAREFUN, DECLARE_CONST, DEFINESORT, DEFINEFUN, ERRORSYM,
+         DECLARESORT, DECLAREFUN, DECLARECONST, DEFINESORT, DEFINEFUN, ERRORSYM,
          EXISTS, EXIT, FALSE, FORALL, GETASSERTIONS, GETASSIGNMENT, GETINFO,
          GETINTERPOLANTS,
          GETMODEL, GETOPTION, GETPROOF, GETUNSATCORE, GETVALUE, IMMEDIATEEXIT,
          INCOMPLETE, LET, LOGIC, NONE, NUMERALSYM, MEMOUT, PAR, POP, PUSH,
          DECIMALSYM, SAT, SUCCESS, SETLOGIC, SETINFO, SETOPTION, STRINGSYM,
          THEORY, TRUE, UNKNOWN, UNSUPPORTED, UNSAT,
-         INCLUDE, RESET, SIMPLIFY, TIMED, ALLSAT, ECHO, FINDIMPLIEDEQUALITY;
+         INCLUDE, RESET, RESETASSERTIONS, SIMPLIFY, TIMED, ALLSAT, ECHO, FINDIMPLIEDEQUALITY;
 
 /* Predefined Keywords */
 terminal String /* attribute */
@@ -564,7 +564,7 @@ command ::= SETLOGIC symbol:logic
                   parser.env.printError(getError());
                else {
                   try {
-                     parser.env.getScript().declareFun(fun, Script.EMPTY_TERM_ARRAY, result);
+                     parser.env.getScript().declareFun(fun, Script.EMPTY_SORT_ARRAY, result);
                      parser.env.printSuccess();
                   } catch (SMTLIBException se) {
                      parser.report_error(se.getMessage(), fun$);
@@ -744,6 +744,8 @@ command ::= SETLOGIC symbol:logic
             :}
           | RESET
             {: parser.env.getScript().reset(); parser.env.printSuccess(); :}
+          | RESETASSERTIONS
+            {: parser.env.getScript().resetAssertions(); parser.env.printSuccess(); :}
           | EXIT
             {: parser.env.getScript().exit(); parser.done_parsing(); :}
           | TIMED
